@@ -10,3 +10,6 @@
 [submodule "riscv-musl"]
 	path = riscv-musl
 	url = https://github.com/lluixhi/musl-riscv
+[submodule "riscv-newlib"]
+	path = riscv-newlib
+	url = https://github.com/arsv/riscv-newlib
