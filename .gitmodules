@@ -7,3 +7,6 @@
 [submodule "riscv-glibc"]
 	path = riscv-glibc
 	url = https://github.com/riscv/riscv-glibc
+[submodule "riscv-musl"]
+	path = riscv-musl
+	url = https://github.com/lluixhi/musl-riscv
