@@ -1,0 +1,21 @@
+PATH := $(abspath staging/bin):$(PATH)
+
+include config.mk
+
+default: $(default)
+
+include make-binutils.mk
+include make-gcc.mk
+
+# Do not remove intermediate targets (stamps etc)
+.SECONDARY:
+
+# Disable built-in rules
+#MAKEFLAGS += --no-builtin-rules --no-builtin-suffixes
+# ^ does not work since $(MAKE) passes them to libgcc which depends
+#   on some of those rules apparently
+# So instead, let's at least do not try to re-build makefiles;
+%.mk:
+
+config.mk:
+	@echo Run ./configure to create config.mk >&2

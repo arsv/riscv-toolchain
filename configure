@@ -1,0 +1,42 @@
+#!/bin/sh
+
+prefix=/opt/riscv
+default=""
+
+rvs=""
+
+die() { echo "$@" >&2; exit 1; }
+
+help() { cat << END
+Usage:
+    ./configure [--prefix $prefix] [configurations]
+
+Available configurations: none
+END
+}
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--prefix)
+			prefix="$2";
+			shift ;;
+		--help)
+			help ;;
+		-*)
+			die "Unknown option $1" ;;
+		rv*)
+			rvs="${rvs:+$rvs }$1" ;;
+		*)
+			die "Unknown target $1" ;;
+	esac
+	shift
+done
+
+if [ -n "$rvs" ]; then
+	default="$rvs"
+fi
+
+cat > config.mk <<END
+prefix := $prefix
+default := $default
+END

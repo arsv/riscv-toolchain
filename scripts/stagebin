@@ -1,0 +1,17 @@
+#!/bin/sh
+
+src="$1"
+target="$2"
+dst=staging/exe
+
+test -n "$src" || exit 2
+test -n "$target" || exit 3
+
+mkdir -p "$dst"
+
+for i in "$src/$target"-*; do
+	base=${i##*/}
+	stem=${base/$target-/}
+	cp -a "$i" "$dst/$stem"
+	touch "$dst/$stem"
+done
