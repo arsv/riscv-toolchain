@@ -12,8 +12,8 @@ Usage:
     ./configure [--prefix $prefix] [configurations]
 
 Available configurations:
-    rv64-gnu rv64-musl rv64-newlib
-    rv32-gnu rv32-musl rv32-newlib
+    rv64-gnu rv64-musl rv64-newlib rv64-elf
+    rv32-gnu rv32-musl rv32-newlib rv32-elf
 
 Default list: $default
 END
