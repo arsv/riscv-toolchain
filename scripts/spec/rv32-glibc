@@ -1,0 +1,26 @@
+*asm_abi_default_spec:
+-m32
+
+*cpp:
+
+
+*cc1:
+-m32 -isystem %R/include/c++ -isystem %R/include
+
+*link:
+-melf32lriscv --sysroot=%R -L%R/lib %{shared}
+
+*startfile:
+%{!shared: %{pg|p|profile:gcrt1.o%s;: %{pie:Scrt1.o%s} %{pie|r|shared:;:crt1.o%s}}} crti.o%s %{static:crtbeginT.o%s;: %{shared:crtbeginS.o%s} %{pie:crtbeginS.o%s} %{pie|r|shared:;:crtbegin.o%s}}
+
+*endfile:
+crtend%O%s
+
+*lib:
+-lc
+
+*link_gomp:
+
+
+*libgcc:
+-lgcc
