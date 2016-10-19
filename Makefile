@@ -13,6 +13,7 @@ include make-libstdcxx.mk
 
 include make-rv-bare.mk
 include make-rv-gnu.mk
+include make-rv-musl.mk
 
 include make-support.mk
 
