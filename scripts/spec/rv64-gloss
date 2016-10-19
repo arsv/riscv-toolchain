@@ -1,0 +1,29 @@
+*asm_abi_default_spec:
+-m64
+
+*cpp:
+
+
+*cc1:
+-isystem %R/include
+
+*cc1plus:
+
+
+*link:
+-melf64lriscv --sysroot=%R -T %R/lib/riscv.ld
+
+*startfile:
+crt0.o%s crtbegin.o%s
+
+*endfile:
+crtend.o%s
+
+*lib:
+-lc -lgloss -lc
+
+*link_gomp:
+
+
+*libgcc:
+-lgcc
