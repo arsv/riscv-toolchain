@@ -1,0 +1,33 @@
+#!/bin/sh
+
+target="$1"
+src="$2"
+dst="staging/$target/lib"
+
+test -d "$src" || exit 0
+test -z "$target" && exit 1
+mkdir -p "$dst"
+
+for i in "$src"/*; do
+	base=${i##*/}
+
+	if [ -d "$i" ]; then # directory, skip it
+		continue;
+	elif [ -h "$i" ]; then # symlink, flatten it
+		link=`readlink "$i"`
+		linkbase=${link##*/}
+		ln -sf "$linkbase" "$dst/$base"
+		continue;
+	fi
+
+	cp -a "$i" "$dst/"
+
+	type=`file "$i"`
+	case "$type" in
+		*text) sed -e 's@/usr/lib@/lib@g' -i "$dst/$base" ;;
+	esac
+
+	case "$base" in
+		*.la) sed -i -e "/^libdir=/s@=.*@=''@" "$dst/$base" ;;
+	esac
+done

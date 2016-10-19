@@ -1,0 +1,29 @@
+*asm_abi_default_spec:
+-m32
+
+*cpp:
+
+
+*cc1:
+-m32 -isysroot=%R
+
+*cc1plus:
+
+
+*link:
+-melf32lriscv --sysroot=%R -L%R/lib %{shared}
+
+*startfile:
+
+
+*endfile:
+
+
+*lib:
+
+
+*link_gomp:
+
+
+*libgcc:
+-lgcc

@@ -7,6 +7,12 @@ default: $(default)
 include make-binutils.mk
 include make-gcc.mk
 
+include make-libgcc.mk
+
+include make-rv-bare.mk
+
+include make-support.mk
+
 # Do not remove intermediate targets (stamps etc)
 .SECONDARY:
 

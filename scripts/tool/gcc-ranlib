@@ -1,0 +1,5 @@
+#!/bin/sh
+
+prefix=
+
+exec "$prefix/exe/gcc-ranlib" -B "$prefix/exe" "$@"

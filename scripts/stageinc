@@ -1,0 +1,11 @@
+#!/bin/sh
+
+target="$1"
+src="$2"
+dst="staging/$target/include"
+
+test -d "$src" || exit 0
+test -z "$target" && exit 1
+mkdir -p "$dst"
+
+cp -a "$src/"* "$dst/"

@@ -1,0 +1,5 @@
+#!/bin/sh
+
+prefix=
+
+exec "$prefix/exe/as" -m32 "$@"

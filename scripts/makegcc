@@ -1,0 +1,37 @@
+#!/bin/sh
+
+# Make user-facing scripts for gcc
+
+tshort="$1"	# rv64-gnu
+target="$2"	# riscv64-unknown-linux-gnu
+specs="$3"	# scripts/spec/libc
+
+cpu=${target%%-*} # riscv64
+bin="staging/bin"
+mkdir -p "$bin"
+
+prefix=$(cd staging/ && pwd)
+
+if [ -z "$specs" -o -z "$target" ]; then
+	echo "Unknown target or missing specs for $tshort" >&2
+	exit 1
+fi
+
+mkdir -p "staging/$target/"
+cp -a "$specs" "staging/$target/specs"
+
+for i in gcc g++; do
+	out="$bin/$target-$i"
+	sed -e "s@^prefix=@prefix=$prefix@" \
+	    -e "s@^target=@target=$target@" \
+		"scripts/tool/$i" > "$out"
+	chmod a+x "$out"
+	test -n "$4" && exit;
+done
+
+for i in gcc-nm gcc-ar gcc-ranlib; do
+	out="$bin/$target-$i"
+	sed -e "s@^prefix=@prefix=$prefix@" \
+		"scripts/tool/$i" > "$out"
+	chmod a+x "$out"
+done

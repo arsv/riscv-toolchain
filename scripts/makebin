@@ -1,0 +1,29 @@
+#!/bin/sh
+
+# Make user-facing scripts for binutils
+
+tshort="$1"	# rv64-gnu
+target="$2"	# riscv64-unknown-linux-gnu
+
+cpu=${target%%-*} # riscv64
+bin="staging/bin"
+mkdir -p "$bin"
+
+prefix=$(cd staging/ && pwd)
+
+if [ -z "$target" ]; then
+	echo "Unknown target $tshort" >&2
+	exit 1
+fi
+
+for i in ld as ar nm ranlib objdump objcopy \
+	strip gdb gprof readelf gcov gcov-tool
+do
+	if [ -f "scripts/tool/$cpu-$i" ]; then
+		sed -e "s@^prefix=@prefix=$prefix@" \
+			"scripts/tool/$cpu-$i" > "$bin/$target-$i"
+		chmod a+x "$bin/$target-$i"
+	else
+		ln -sf "../exe/$i" "$bin/$target-$i"
+	fi
+done
