@@ -5,7 +5,8 @@ rv64-gnu: \
 	staging/rv64-gnu-tools \
 	staging/rv64-gnu-libc \
 	staging/rv64-gnu-libgcc \
-	staging/rv64-gnu-libgccaux
+	staging/rv64-gnu-libgccaux \
+	staging/rv64-gnu-libstdcxx
 
 rv32-gnu := riscv32-unknown-linux-gnu
 rv32-gnu-spec := scripts/spec/rv32-glibc
@@ -14,7 +15,8 @@ rv32-gnu: \
 	staging/rv32-gnu-tools \
 	staging/rv32-gnu-libc \
 	staging/rv32-gnu-libgcc \
-	staging/rv32-gnu-libgccaux
+	staging/rv32-gnu-libgccaux \
+	staging/rv32-gnu-libstdcxx
 
 # Libc is configured for /usr, so that the installed files
 # could be used to build something bootable. Files needed

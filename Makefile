@@ -9,6 +9,7 @@ include make-gcc.mk
 
 include make-libgcc.mk
 include make-libgccaux.mk
+include make-libstdcxx.mk
 
 include make-rv-bare.mk
 include make-rv-gnu.mk

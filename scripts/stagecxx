@@ -1,0 +1,29 @@
+#!/bin/sh
+
+# Put libstdc++ headers into their proper location in sysroot.
+# GCC makefiles install them in arch- and version-specified directories
+# like this:
+#     include/c++/6.1.0/...
+#     include/c++/6.1.0/riscv64-unknown-linux-gnu/...
+#
+# $2 is files-*/usr/include here, w/o trailing c++
+
+target="$1"
+src="$2/c++"
+dst="staging/$target/include/c++"
+
+test -d "$src" || exit 0
+test -z "$target" && exit 1
+mkdir -p "$dst"
+
+for i in "$src/"*/*; do
+	bn=${i##*/}
+	case "$bn" in
+		riscv*)
+			cp -a "$i/"* "$dst/"
+			;;
+		*)
+			cp -a "$i" "$dst/"
+			;;
+	esac
+done
