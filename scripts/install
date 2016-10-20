@@ -62,3 +62,15 @@ for i in staging/bin/*; do
 		chmod a+x "$dst/bin/$cmd"
 	fi
 done
+
+# Newlib installs these files as 0400, messing re-installs into
+# the same location. Everything else is 0644 anyway, so let's undo that.
+
+for c in riscv64 riscv32; do
+	for t in linux-newlib elf; do
+		target="${c}-unknown-${t}"
+		if [ -f "$dst/$target/include/machine/syscall.h" ]; then
+			chmod u+w "$dst/$target/include/machine/"*
+		fi
+	done
+done
