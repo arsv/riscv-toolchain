@@ -120,7 +120,7 @@ Re-speccing GCC
 To use arbitrary riscv sysroot, GCC must be told where to find
 
   * its own parts like cc1, collect2
-    (common for all sysroot, built into gcc executable)
+    (common for all sysroot, path built into gcc executable)
 
   * compatible binutils (and how to run them)
   * headers within the sysroot
@@ -176,7 +176,7 @@ Overview for the staging/ directory, also the final installation prefix:
 The scripts in bin/ are adjusted for each location this gets put in,
 the rest is just copied.
 
-For consistency, sysroot name matches the tools prefix.
+For consistency, sysroot name always matches tools prefix.
 
 
 Re-targeting GCC: binutils
@@ -217,11 +217,11 @@ only needs /lib/ld*.so to be available at its exact location.
 Re-targeting GCC: specs
 ~~~~~~~~~~~~~~~~~~~~~~~
 Supplying the specs to gcc via -specs option does not wipe the built-in
-ones, only amends them. Per-sysroot specs need only carry the keys specific
-for that particular sysroot.
+ones, only adds to those. Per-sysroot specs need only carry the keys
+specific for that particular sysroot.
 
-Note -dumpspecs dumps *built-in* specs regardless of what was passed via
-command line options. There's apparently no way to dump effective specs.
+With -dumpspecs gcc dumps *built-in* specs regardless of what was passed
+via command line options. There's apparently no way to dump effective specs.
 
 There's an (undocumented) %R sequence that expands to sysroot path.
 As long as --sysroot is passed to gcc, include and lib paths can
@@ -249,7 +249,8 @@ the regular cc1 (plain C frontend).
 
 The bare target lacks dynamic libgcc and some of the start files, so those
 entries are much simplier. Musl and glibc apparently use the same names
-for their startfiles and endfiles.
+for their startfiles and endfiles, but need different ld.so names.
+Newlib needs -lgloss in addition to -lc.
 
 
 Dependencies between libc and libgcc
@@ -257,7 +258,7 @@ Dependencies between libc and libgcc
 GCC cannot link anything without libgcc.
 "Anything" includes libc. libgcc depends on libc.
 
-To break the circular dependency, libgcc may be built without libc,
+To break the circular dependency, libgcc may be built without libc
 by passing -Dinhibit_libc to the compiler.
 
 The bare toolchain is built first, with no-libc libgcc.
@@ -265,14 +266,13 @@ Then it is used to build libc (in particular, to link ld.so) and stage it.
 Finally full libgcc is re-built with libc-enabled toolchain.
 
 Configuring libgcc for riscv64-unknown-elf suppresses crtbeginS.o, which is
-needed to link dynamic libc. However, there's no problem configuring libgcc
-for riscv64-unknown-linux-gnu with inhibit-libc in place.
+needed to link dynamic glibc. However, there's no problem configuring libgcc
+for riscv64-unknown-linux-gnu and then building with inhibit-libc in place.
 
 Replacing riscv64-unknown-elf with riscv64-unknown-linux-gnu apparently does
 nothing to the regular crtbegin.o, so the resulting library can be used as
-a bare-iron compiler, probably. If it did, it would make sense to build stage1
-sysroot for libc and another, separate one for bare iron builds.
-For now however, stage1 doubles as bare iron toolchain (riscv64-unknown-elf).
+a bare-iron compiler, probably. If it did, it would make sense to re-build
+libgcc for newlib target, but for now this step is skipped.
 
 
 libstdc++ and auxilliary gcc target libs
@@ -283,8 +283,8 @@ are not necessary to build libc, and require a fully operational
 toolchain themselves. Because of this, they are built after both libc
 and full libgcc has been staged.
 
-libstdc++ warrants its own build directory, the other libs are grouped
-in -gccaux for now.
+libstdc++ warrants its own build directory, the other libs small enough
+to be grouped in -gccaux.
 
 Passing _GNU_SOURCE to libstdc++ is necessary for stdtod_l etc definitions
 (include/riscv64-unknown-linux-gnu/bits/c++locale_internal.h)
@@ -303,7 +303,7 @@ from libgloss as well.
 The resulting toolchain makes linux binaries, so the toolchain gets installed
 with riscv64-unknown-linux-newlib triplet.  The original riscv-gnu-toolchain
 called it riscv64-unknown-elf. In this project, -unknown-elf is reserved
-for bare (no-libc) compiler, a kind of short-hand for -nostdinc -nostdlib.
+for bare-iron toolchain, with newlib but defunct (nosys) libgloss.
 
 Top-level configure in riscv-newlib is a mess. It's way easier to configure
 newlib proper and libgloss in separate directories.
