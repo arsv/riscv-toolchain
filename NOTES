@@ -1,0 +1,330 @@
+Toolchains and RISC-V variants
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+A toolchain is a set of host executables (as, ld, gcc, cc1, collect2, ...)
+and target libraries (libgcc.a, libc.so, ld.so, ...) with their headers.
+
+GNU toolchains are typically built in a way that ties both parts early,
+so that each set of executables retains paths and settings for a fixed
+set of libraries.
+
+This comes really bad for riscv, with rv32/rv64, no-atomic, soft-float,
+glibc, newlib, musl and whatever else producing large number of possible
+combinations, most of which are not necessary in any given use case.
+
+The key point behind this whole project is that there is essentially
+only one distinct set of executables shared among all riscv toolchains,
+and it is only the target libraries that are specific to a particular
+riscv target.
+
+Given proper command line options, any riscv gcc, no matter how it was
+configured at build time, is capable of generating code for rv32, rv64,
+with hard of soft float, with or without atomic ops, targeting glibc,
+musl or bare metal.
+
+Breaking the strong ties between the host executables and the target
+libraries allows much faster and much more flexible builds, in part
+by removing the need to re-build the executables for each target, and
+in part by making it easier to skip unused configuration.
+
+
+Toolchain naming: target triplets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The intended use for target triplets is essentially this:
+
+    ./configure --target=riscv64-unknown-linux-gnu
+
+Configure is expected to pick riscv64-unknown-linux-gnu-gcc to build target
+binaries, and that gcc is in turn expected to have a particular target
+configuration like sysroot path and such built into it so there is no need
+to pass it via configure.
+
+This naming scheme works well for rv32/rv64 and different libc implementations,
+not so much for soft-float and no-atomic variants. Since both sf and na affect
+sysroot selection, they should really get their own triplets, cf. arm7hf. 
+However, the supplied value gets validated by config.sub, which rejects
+anything other than riscv64 and riscv32 for the leading component.
+
+config.sub does accept anything for the second component however,
+so names like riscv64-sfna-linux-gnu should probably work.
+That part should not be -unknown- anyway.
+
+Using target triples this way has one big advantage: the triplet completely
+determines both parts of the toolchain, simplifying subsequent toolchain use.
+
+
+Toolchain naming: multilibs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This option used in some x86 toolchains and in riscv-gnu-toolchain.
+The target triplet picks the executables and the "default" sysroot, while
+additional sysroots are selected via -msoft-float, -mno-atomic and such.
+
+It is an awful idea all around and especially in riscv context.
+
+    ./configure --target=riscv64-unknown-linux-gnu \
+                CFLAGS="-m32 -msoft-float"
+
+The real problem is how multilib is implemented in gcc and glibc.
+Whenever configured, the set of -m* options is hard-coded and gcc will
+build *ALL* configurations at once.
+
+This is exactly what happens in riscv-gnu-toolchain: it cannot produce
+just a 32/64 toolchain, there will be six sysroots for glibc alone,
+and no way to add e.g. musl configuration post-build.
+
+Multilib is really a (poor) solution to a rather unique situation
+with x86, where the same cpu routinely runs two incompatbile kinds
+of executables which should be able to co-exist in the same file system.
+
+That does not happen with riscv. The cpu is either rv32 or rv64.
+The FPU is either there or not. Atomics are either supported or not.
+Glibc and musl may happen to co-exist, but *that* particular case
+is not covered by multilib at all.
+
+Overall RISC-V seems to be much closer to ARM in this respect than
+to x86, with e.g. arm8/arm7hf/rv64g/rv32g toolchains being the common
+mainstream case, and arm6/rv32ie or whatever comprising special
+cases built only when necessary.
+
+
+Building the host executables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Binutils apparently retain no paths, can be configured for any valid target
+and moved around at will. As and ld must be told to use either 32 or 64 bit
+mode. Libc, fp and atomics opts have no effect on binutils.
+
+For GCC, the original target name gets retained within the executables.
+Using "riscv64-unknown-elf" for now, describes the actual config well.
+The shorter riscv64-elf is invalid.
+
+Both binutils and GCC install prefixed executables: riscv64-unknown-elf-ld.
+The tools are then moved outside of PATH: staging/exe/ld.
+
+GCC builds several host-side files (LTO plugins, include, include-fixed,
+collect2 and such) and looks for them in a directory relative to gcc executable
+location. The path contains original target and GCC version:
+
+    ../lib/gcc/riscv64-unknown-elf/6.1.0/cc1
+    ../lib/gcc/riscv64-unknown-elf/6.1.0/include
+
+Assumption: the includes are not target-dependent! (same for rv32 and rv64)
+Seems to hold, those are more like std header fixes. May be worth deleting,
+too, since riscv only builds relatively recent libcs.
+But there's at least stddef.h that is not provided by libc, that one must stay.
+
+There are also gcc-nm, gcc-ar (LTO wrappers over resp. tools) that must
+be able to find the respective nm, ar etc executables. TODO: check them.
+
+
+Re-speccing GCC
+~~~~~~~~~~~~~~~
+To use arbitrary riscv sysroot, GCC must be told where to find
+
+  * its own parts like cc1, collect2
+    (common for all sysroot, built into gcc executable)
+
+  * compatible binutils (and how to run them)
+  * headers within the sysroot
+  * libraries within the sysroot
+
+Looks like three or so command line options to pass to GCC,
+should be really easy, right?
+
+RIGHT?!
+
+Well no, this is the GNU compiler. Nothing is easy. Everything is hard.
+There is no way to *just* supply those paths. GCC will still use its
+built-in assumptions, which are mostly based around $target/$version.
+Note $target is what was used for gcc configure (riscv64-unknown-elf)
+and it cannot be changed at runtime to the actual target triplet in use.
+
+That probably makes some sense whenever there are several gcc versions
+installed with the same prefix, or maybe when each sysroot gets its own
+copy of the executables, but in riscv case, it gets in the way a lot.
+
+
+Executables and user-facing scripts
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The raw executables configured for riscv64-unknown-elf (stage1 gcc)
+are not visible to the user. They are installed, non-prefixed,
+to staging/exe/.
+
+What the user will see are the scripts that supply those executables
+with proper specs file and a matching sysroot.
+So for instance bin/riscv64-unknown-linux-gnu-gcc calls exe/gcc with
+the right arguments to pick riscv64-unknown-linux-gnu/ sysroot.
+
+The scripts do need to pass absolute locations to the tools.
+A wrapper like the ones gcc uses for gcc-nm, gcc-ld etc could do, but
+it is easier to hard-code installation prefix into the scripts.
+The scripts themselves won't be relocatable, but we can just generate
+them for each prefix we need. The stuff in exe/ remains freely relocatable.
+
+
+Tools installation
+~~~~~~~~~~~~~~~~~~
+Overview for the staging/ directory, also the final installation prefix:
+
+    staging/   (or wherever it will be installed)
+      bin/           target-prefixed user-facing scripts
+      exe/           non-prefixed raw toolchain executables
+      lib/           common gcc private stuff (cc1, collect2, includes)
+      riscv*/        flattened per-target sysroots
+        include/     per-target headers
+	lib/         per-target libraries
+	specs        per-target specs (runtime gcc config)
+
+The scripts in bin/ are adjusted for each location this gets put in,
+the rest is just copied.
+
+For consistency, sysroot name matches the tools prefix.
+
+
+Re-targeting GCC: binutils
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+GCC tries to locate non-prefixed tools in the same directory collect2
+is in (../lib/$target/$version/) but this results in really ugly messages
+any time there's an error.
+
+Instead, -B staging/exe instructs it to search for non-prefixed binutils
+exactly where they were installed, and produces reasonably nice error
+messages.
+(TODO: move cc1, collect2 to staging/exe/ as well)
+
+GCC will also look for prefix tools in $PATH, but $PATH lookups may be
+ambiguous whenever there's more than one riscv toolchain.
+
+Using non-prefixed binutils means any target-specific arguments passed
+otherwise via user-facing scripts must also be in gcc specs.
+
+Warning: failing to find e.g. "as" in -B and in ../lib/$target/$version
+and "$target-as" in $PATH, gcc will try plain "as" even if configured
+as a cross-compiler. This results in really weird error messages when
+riscv code gets fed to an x86 assembler.
+
+
+Flat sysroots
+~~~~~~~~~~~~~
+Sysroot may reproduce the target filesystem exactly, with directories
+like %R/usr/include, %R/usr/lib etc, or it may flatten the structure,
+leaving only the important parts: %R/include, %R/lib.
+
+For dual-use sysroots, i.e. those also used to run target executables,
+the exact structure makes some sense -- but only if the executables
+are effectively chroot-ed there. Qemu does not do that, and -L $SYSROOT
+only needs /lib/ld*.so to be available at its exact location.
+
+
+Re-targeting GCC: specs
+~~~~~~~~~~~~~~~~~~~~~~~
+Supplying the specs to gcc via -specs option does not wipe the built-in
+ones, only amends them. Per-sysroot specs need only carry the keys specific
+for that particular sysroot.
+
+Note -dumpspecs dumps *built-in* specs regardless of what was passed via
+command line options. There's apparently no way to dump effective specs.
+
+There's an (undocumented) %R sequence that expands to sysroot path.
+As long as --sysroot is passed to gcc, include and lib paths can
+be constructed as %R/include and %R/lib, yielding nice absolute paths
+without the need to hard-code installation prefix in specs.
+
+This means the scripts in staging/bin/ are the only places where prefix
+gets hard-coded, the rest of the toolchain is completely relocatable.
+
+
+Re-targeting GCC: includes and libs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Making cc1 check the right directories means just passing it proper -isystem
+via specs. And -isysroot to make sure it won't go for the absolute directories
+based on --prefix for gcc.
+
+cc1* does not allow duplicate directories in search path despite #include_next
+being a thing. Specs, for all their complexity, do not allow passing an option
+to cc1 without also passing it to cc1plus (because cc1plus gets *appended* to
+cc1 instead of replacing it). The result: include/c++/ always trails include/
+and breaks libstdc++ attempts at using #include_next <stdlib.h>.
+
+For now, this gets resolved but passing both include/c++/ and include/ to
+the regular cc1 (plain C frontend).
+
+The bare target lacks dynamic libgcc and some of the start files, so those
+entries are much simplier. Musl and glibc apparently use the same names
+for their startfiles and endfiles.
+
+
+Dependencies between libc and libgcc
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+GCC cannot link anything without libgcc.
+"Anything" includes libc. libgcc depends on libc.
+
+To break the circular dependency, libgcc may be built without libc,
+by passing -Dinhibit_libc to the compiler.
+
+The bare toolchain is built first, with no-libc libgcc.
+Then it is used to build libc (in particular, to link ld.so) and stage it.
+Finally full libgcc is re-built with libc-enabled toolchain.
+
+Configuring libgcc for riscv64-unknown-elf suppresses crtbeginS.o, which is
+needed to link dynamic libc. However, there's no problem configuring libgcc
+for riscv64-unknown-linux-gnu with inhibit-libc in place.
+
+Replacing riscv64-unknown-elf with riscv64-unknown-linux-gnu apparently does
+nothing to the regular crtbegin.o, so the resulting library can be used as
+a bare-iron compiler, probably. If it did, it would make sense to build stage1
+sysroot for libc and another, separate one for bare iron builds.
+For now however, stage1 doubles as bare iron toolchain (riscv64-unknown-elf).
+
+
+libstdc++ and auxilliary gcc target libs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+GCC comes with some more libraries: libstdc++ (necessary for C++),
+libatomic, libssp, libgomp, libquadmath (optional). These libraries
+are not necessary to build libc, and require a fully operational
+toolchain themselves. Because of this, they are built after both libc
+and full libgcc has been staged.
+
+libstdc++ warrants its own build directory, the other libs are grouped
+in -gccaux for now.
+
+Passing _GNU_SOURCE to libstdc++ is necessary for stdtod_l etc definitions
+(include/riscv64-unknown-linux-gnu/bits/c++locale_internal.h)
+During normal gcc builds, this is done by top-level configure.
+
+Dynamic libgcc, if needed, should be built with these probably,
+not with the initial libgcc.
+
+
+Newlib toolchain
+~~~~~~~~~~~~~~~~
+Newlib proper (libc.a) is target-independent, but leaves unresolved symbols
+for syscalls provided by linux-specific libgloss. Linux-specific crt0.o comes
+from libgloss as well.
+
+The resulting toolchain makes linux binaries, so the toolchain gets installed
+with riscv64-unknown-linux-newlib triplet.  The original riscv-gnu-toolchain
+called it riscv64-unknown-elf. In this project, -unknown-elf is reserved
+for bare (no-libc) compiler, a kind of short-hand for -nostdinc -nostdlib.
+
+Top-level configure in riscv-newlib is a mess. It's way easier to configure
+newlib proper and libgloss in separate directories.
+
+That riscv.ld script should not be there probably.
+It's only needed to provide _fbss symbol for libgloss crt0.o.
+
+
+Specs vs command line arguments in scripts
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Switching between 32 and 64 bits could be possible with only -m32/-m64
+in the scripts, using the same specs for both 32 and 64 toolchains,
+if not for the -T riscv.ld that riscv-gcc ships with.
+
+Doing so would rely on gcc's built-in specs, so *link and *asm would be gone
+from target-specific ones.
+
+However, -T riscv.ld *is* there for some reason, and using -m32/-m64
+just adds a conditional where none is needed. The specs are already per-target,
+so what's the point in complicating them by having %{m32:...}, %{m64:...}
+scattered around instead of stating clearly and directly which options we pass.
+
+The only downside here is support for -m32 in 64-bit toolchains and -m64
+in 32-bit toolchains. Which should not probably be there in the first place.

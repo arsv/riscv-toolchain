@@ -1,0 +1,49 @@
+This project provides a set of Makefiles and support scripts
+for building RISC-V toolchains. Quick usage guide:
+
+    ./configure --prefix=/opt/riscv rv64-gnu rv64-musl
+    make
+    make DESTDIR=path/to/somewhere install
+
+This is a (partial) alternative to https://github.com/riscv/riscv-gnu-toolchain
+
+The toolchain is built with a single set of tools (ld, as, gcc etc)
+and several independent sysroots, one per target. Each target gets properly
+prefixed commands (riscv64-unknown-gnu-ld, riscv64-unknown-gnu-gcc etc)
+pairing the tools with the right sysroot for the target.
+
+Any subset of supported configurations can be built, at once or one at a time.
+
+The build process is interruptable: hit ctrl-c, repeat the same make command,
+and it should continue from about the point where it was interrupted.
+
+DESTDIR is properly supported. Nothing is written to $prefix until make install.
+Having another toolchain installed in $prefix should not affect the build.
+
+The toolchain is also fully usable in-place without installation:
+
+    staging/bin/riscv64-unknown-linux-gnu-gcc -o hello hello.c
+    qemu-riscv64 -L staging/riscv64-unknown-linux-gnu ./hello
+
+Expected use cases:
+
+  * Building 64/32 glibc toolchain without soft-float/no-atomic options
+    (pretty common case yet poorly supported by riscv-gnu-toolchain).
+
+  * Libc experiments with reasonably fast iterations
+    (musl builds, getting that -fPIC into a particular glibc config).
+
+  * Packaging resulting toolchains with common package managers.
+
+See NOTES on how and why this works. And please keep in mind the approach
+taken here is quite unusual for gcc toolchains, and may require tweaks
+to work in some cases.
+
+Some configurations are not fully supported yet: rv32-musl fails to build,
+newlib sysroots are built without libstdc++, bare-metal newlib targets are
+not supported, musl in incomplete upstream. This may change later. Part of
+goals for this project is provide scaffolding for addressing issues like that.
+
+Note the toolchain will be built from whatever sources happen to be checked
+out in riscv-gcc and riscv-binutils-gdb. In case specific branches are needed,
+like priv-1.9.x for instance, make sure to check them out.
