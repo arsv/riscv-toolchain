@@ -1,7 +1,7 @@
 #!/bin/sh
 
 prefix=/opt/riscv
-default="rv64-gnu rv64-musl"
+default="rv64-gnu rv64-musl rv64-newlib"
 
 rvs=""
 
@@ -14,6 +14,9 @@ Usage:
 Available configurations:
     rv64-gnu rv64-musl rv64-newlib rv64-elf
     rv32-gnu rv32-musl rv32-newlib rv32-elf
+
+All gnu, musl and newlib configs target Linux.
+The rv*-elf is for bare-metal toolchains (newlib + nosys-libgloss).
 
 Default list: $default
 END
