@@ -5,7 +5,6 @@ for building RISC-V toolchains. Quick usage guide:
     make
     make DESTDIR=path/to/somewhere install
 
-    # optionally
     make hello
     make run-hello # requires qemu-riscv in $PATH
 
@@ -46,10 +45,10 @@ to work in some cases.
 
 Some configurations are not fully supported yet. Non-patched libstdc++
 fails to build on RV32 (see patches/), newlib sysroots are built without
-libstdc++, bare-metal target is incomplete, musl in incomplete upstream.
-This may change later. Part of goals for this project is provide scaffolding
-for addressing issues like that.
+libstdc++, bare-metal target is incomplete, musl is incomplete upstream.
+This may change later.
 
 Note the toolchain will be built from whatever sources happen to be checked
 out in riscv-gcc and riscv-binutils-gdb. In case specific branches are needed,
-like priv-1.9.x for instance, prepare the sources before starting the build.
+like priv-1.9.x for instance, prepare the sources before starting the build,
+or rebuild/restage/reinstall affected components.
