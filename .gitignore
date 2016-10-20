@@ -2,3 +2,4 @@ config.mk
 build-*
 files-*
 staging
+hello-*
