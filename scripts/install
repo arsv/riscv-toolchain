@@ -1,0 +1,64 @@
+#!/bin/sh
+
+DESTDIR="$1"
+prefix="$2"
+
+die() { echo "$@" >&2; exit 1; }
+run() { echo "> $@"; "$@"; }
+
+test -z "$prefix" && die "No \$prefix specified"
+test -d staging/ || die "No staging/ to install"
+
+dst="$DESTDIR$prefix"
+
+run mkdir -p "$dst"
+run cp -a staging/exe/ "$dst/"
+run cp -a staging/lib/ "$dst/"
+
+# Because of libgcc dependency on riscv*-unknown-linux-gnu
+# tools, there may be scripts and specs without any other
+# parts of the toolchain. If so, detect and skip them.
+
+if [ -d "staging/riscv64-unknown-linux-gnu/include" ]; then
+	gnu64=yes
+else
+	gnu64=
+fi
+
+if [ -d "staging/riscv32-unknown-linux-gnu/include" ]; then
+	gnu32=yes
+else
+	gnu32=
+fi
+
+for i in staging/riscv*; do
+	case "${i##*/}" in
+		*-bare)
+			continue ;;
+		riscv64-unknown-linux-gnu)
+			test -z "$gnu64" && continue ;;
+		riscv32-unknown-linux-gnu)
+			test -z "$gnu32" && continue ;;
+	esac
+	run cp -a "$i" "$dst/"
+done
+
+run mkdir -p "$dst/bin"
+echo "# installing scripts to $dst/bin/"
+for i in staging/bin/*; do
+	cmd=${i##*/}
+	case "$cmd" in
+		riscv64-bare-*) continue ;;
+		riscv32-bare-*) continue ;;
+		riscv64-unknown-linux-gnu-*)
+			test -z "$gnu64" && continue ;;
+		riscv32-unknown-linux-gnu-*)
+			test -z "$gnu64" && continue ;;
+	esac
+	if [ -h "$i" ]; then
+		cp -a "$i" "$dst/bin/"
+	else
+		sed -e "/^prefix=/s@=.*@=$prefix@" "$i" > "$dst/bin/$cmd"
+		chmod a+x "$dst/bin/$cmd"
+	fi
+done
