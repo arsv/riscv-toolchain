@@ -1,0 +1,4 @@
+Apply the patches manually!
+No auto-application to avoid messing up non-master branches.
+
+gcc patch is needed for any rv32 builds involving libstdc++
