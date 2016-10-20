@@ -43,4 +43,7 @@ fi
 cat > config.mk <<END
 prefix := $prefix
 default := $default
+
+qemu32 := qemu-riscv32
+qemu64 := qemu-riscv64
 END

@@ -18,6 +18,7 @@ include make-rv-newelf.mk
 include make-rv-newlib.mk
 
 include make-support.mk
+include make-xhello.mk
 
 # Do not remove intermediate targets (stamps etc)
 .SECONDARY:
