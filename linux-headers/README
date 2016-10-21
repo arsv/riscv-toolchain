@@ -1,0 +1,3 @@
+Parts of the kernel. Should be a submodule, but I'm not willing
+to pull the whole riscv-linux just for the headers, and there's
+no upstream repo for these.
