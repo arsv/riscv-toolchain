@@ -71,6 +71,7 @@ build-%-new-libgloss/stamp: build-%-new-libgloss/Makefile
 files-%-new-libgloss/stamp: build-%-new-libgloss/stamp
 	$(MAKE) -C $(patsubst files-%,build-%,$(dir $@)) \
 		install DESTDIR=$(abspath $(dir $@))
+	chmod u+w $(dir $@)usr/include/machine/*.h
 	touch $@
 
 staging/%-new-libgloss: files-%-new-libgloss/stamp
